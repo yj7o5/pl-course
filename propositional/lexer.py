@@ -8,15 +8,15 @@ class Location:
         self.line = line
 
 class TokenKind:
-    ID = 0   # identifier
-    LPAR = 1 # (
-    RPAR = 2 # )
-    NOT = 3  # !
-    AND = 4  # /\
-    OR = 5   # \/
-    IMPLIES = 6  # =>
-    IFF = 7  # <=>
-    COMMA = 8 # ,
+    ID = "ID"   # identifier
+    LPAR = "LPAR" # (
+    RPAR = "RPAR" # )
+    NOT = "NOT"  # !
+    AND = "AND"  # /\
+    OR = "OR"   # \/
+    IMPLIES = "IMPLIES"  # =>
+    IFF = "IFF"  # <=>
+    COMMA = "COMMA" # ,
     
 class Token:
     def __init__(self, loc, kind):
@@ -25,6 +25,9 @@ class Token:
 
     def __str__(self):
         return str(self.kind)
+    
+    def is_kind(self, otherKind):
+        return self.kind == otherKind 
 
 class Lexer(object):
     def __init__(self, text):
@@ -61,16 +64,13 @@ class Lexer(object):
     def __raise_error(self):
         raise SyntaxError('Invalid character at line {line} col {col}'.format(line=self.line, col=self.col))
 
-    def flatten_tokenize(self):
-        return map(lambda x: x.kind, self.tokenize())
-
     def tokenize(self):
         tokens = []
         
-        print ">>>>>> {c} <<<<<<".format(c=self.text)
+        # print ">>>>>> {c} <<<<<<".format(c=self.text)
 
         while self.__advance() is not None:
-            print "StartLoop: current_value={c} tokens={t} column={co} cursor={cur}".format(c=self.cursor_value, t=map(lambda x: x.kind, tokens), co=self.col, cur=self.cursor)
+            # print "StartLoop: current_value={c} tokens={t} column={co} cursor={cur}".format(c=self.cursor_value, t=map(lambda x: x.kind, tokens), co=self.col, cur=self.cursor)
 
             # eat whitespace
             if self.cursor_value.isspace():

@@ -1,102 +1,129 @@
-from lexer import Location, Lexer
+from lexer import Location, Lexer, TokenKind, Token
 import sys
 
 class VariableType:
-    PROPOSITIONS = 0
-    PROPOSITION  = 1
-    ATOMIC       = 2
-    MOREPROPOSITIONS = 3
-    COMPOUND = 4
-    CONNECTIVE = 5
+    PROPOSITIONS = "PROPOSITIONS"
+    PROPOSITION  = "PROPOSITION"
+    ATOMIC       = "ATOMIC"
+    MOREPROPOSITIONS = "MOREPROPOSITIONS"
+    COMPOUND = "COMPOUND"
+    CONNECTIVE = "CONNECTIVE"
+    EPSILON = "EPSILON"
 
-'''
-Input: Q
+    @staticmethod
+    def is_connective(token_kind):
+        return token_kind in (TokenKind.AND, TokenKind.OR, TokenKind.IMPLIES, TokenKind.IFF)
 
-parse()
-    node - Ps
-        left > P
-        right > MP
-
-        node - P (test atomic | compound)
-            left - atomic
-        
-        node - MP
-            left - no node left i.e. Epsilon
-
-Input: !Q 
-                [!, Q]
-    node - Ps    ^
-        left > P
-        right > MP
-        
-    node - P test atomic 0 1 or ID none
-             test compound
-             test atomic conn prop (2 more tokens after this) NOP only 2 available
-             test LPAR prop RPAR NOP
-             test NOT Proposition YES. expand Prop
-
-             node - P
-                atomic - ID
-
-Input: P <=> Q
-                
-
-    
-match as Ps
-returns a node { type: P }
-node
-    left -> prop
-    right -> m
-
-
-'''
-
-class Node:
-    def __init__(self, t, v):
-        self.type = t
-        self.value = v
+class Node(object):
+    def __init__(self, _type):
+        self.type = _type
+        self.children = []
 
 class Parser:
     def __init__(self):
         self.loc = Location(0, 0)
+        self.token = None
 
     def parse(self, tokenList):
-        self.__currentTokens = tokenList
-        self.__currentPtr = 0
+        self.tokenList = tokenList
 
-        root = propositions() 
+        self.token = self.__read_token()
+
+        root = self.propositions()
 
         return root
 
-    def match(self, token):
-        print token
-        raise NotImplementedError
+    def match(self, token_kind):
+        if token_kind != self.token.kind:
+            self.__raise_error()
+
+        self.token = self.__read_token()
+        
+        return Node(token_kind)
 
     def propositions(self):
-    
-        raise NotImplementedError
+        node = Node(VariableType.PROPOSITIONS)
+
+        node.children.extend([self.proposition(), self.more_propositions()])
+
+        return node
 
     def more_propositions(self):
-        print sys._getframe().f_code.co_name
-        raise NotImplementedError
+        node = Node(VariableType.MOREPROPOSITIONS)
+     
+        if self.token is None:
+            node.children.extend([Node(VariableType.EPSILON)])
+
+        elif self.token.is_kind(TokenKind.COMMA):
+            node.children.extend([self.match(TokenKind.COMMA), self.propositions()])
+        
+        else: 
+            self.__raise_error()
+
+        return node
     
     def proposition(self):
-        print sys._getframe().f_code.co_name
-        raise NotImplementedError
+        node = Node(VariableType.PROPOSITION)
+
+        if self.token is None:
+            self.__raise_error()
+
+        elif self.token.is_kind(TokenKind.ID) and not VariableType.is_connective(self.__seek_next_token().kind):
+            node.children.extend([self.atomic()])
+        
+        else: 
+            node.children.extend([self.compound()])
+
+        return node
 
     def atomic(self):
-        print sys._getframe().f_code.co_name
-        raise NotImplementedError
+        node = Node(VariableType.ATOMIC)
+        node.children.extend([self.match(TokenKind.ID)])
+
+        return node
 
     def compound(self):
-        print sys._getframe().f_code.co_name
+        node = Node(VariableType.COMPOUND)  
 
-        raise NotImplementedError
+        if self.token is None:
+            self.__raise_error()
+
+        elif self.token.is_kind(TokenKind.NOT):
+            node.children.extend([self.match(TokenKind.NOT), self.proposition()])
+
+        elif self.token.is_kind(TokenKind.LPAR):
+            node.children.extend([self.match(TokenKind.LPAR), self.proposition(), self.match(TokenKind.RPAR)])
+        
+        elif self.token.is_kind(TokenKind.ID):
+            node.children.extend([self.atomic(), self.connective(), self.proposition()])
+
+        else: 
+            self.__raise_error()
+        
+        return node
 
     def connective(self):
-        print sys._getframe().f_code.co_name
-        raise NotImplementedError
+        node = Node(VariableType.CONNECTIVE)
+
+        if self.token is None or not VariableType.is_connective(self.token.kind):
+            self.__raise_error()
+
+        node.children.extend([self.match(self.token.kind)])
+
+        return node
+    
+    def __raise_error(self):
+        line = self.token.loc.line
+        col = self.token.loc.col
+        raise SyntaxError("line {l} col {c}".format(l=line, c=col))
+
+    def __read_token(self):
+        return self.tokenList.pop(0) if len(self.tokenList) > 0 else None
+
+    def __seek_next_token(self):
+        if len(self.tokenList) is 0: return Token(None, None)
         
+        return self.tokenList[0]
     # add more methods if needed
 
 
