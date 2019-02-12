@@ -23,47 +23,57 @@ class Parser:
     def __init__(self):
         self.loc = Location(0, 0)
         self.token = None
+        self.preorder_tokens = []
 
     def parse(self, tokenList):
         self.tokenList = tokenList
 
         self.token = self.__read_token()
-
+    
         root = self.propositions()
-
-        return root
+        
+        return self.preorder_tokens
 
     def match(self, token_kind):
         if token_kind != self.token.kind:
             self.__raise_error()
-
+    
         self.token = self.__read_token()
         
+        self.preorder_tokens.append(token_kind)
+
         return Node(token_kind)
 
     def propositions(self):
         node = Node(VariableType.PROPOSITIONS)
+        self.preorder_tokens.append(node.type)
 
         node.children.extend([self.proposition(), self.more_propositions()])
 
         return node
 
     def more_propositions(self):
+
         node = Node(VariableType.MOREPROPOSITIONS)
-     
+        self.preorder_tokens.append(node.type)
+
         if self.token is None:
             node.children.extend([Node(VariableType.EPSILON)])
+            self.preorder_tokens.append(VariableType.EPSILON)
 
         elif self.token.is_kind(TokenKind.COMMA):
+            self.preorder_tokens.append(TokenKind.COMMA)
             node.children.extend([self.match(TokenKind.COMMA), self.propositions()])
-        
+
         else: 
             self.__raise_error()
 
         return node
     
     def proposition(self):
+
         node = Node(VariableType.PROPOSITION)
+        self.preorder_tokens.append(node.type)
 
         if self.token is None:
             self.__raise_error()
@@ -77,13 +87,18 @@ class Parser:
         return node
 
     def atomic(self):
+
         node = Node(VariableType.ATOMIC)
+
+        self.preorder_tokens.append(node.type)
         node.children.extend([self.match(TokenKind.ID)])
 
         return node
 
     def compound(self):
+
         node = Node(VariableType.COMPOUND)  
+        self.preorder_tokens.append(node.type)
 
         if self.token is None:
             self.__raise_error()
@@ -103,7 +118,9 @@ class Parser:
         return node
 
     def connective(self):
+
         node = Node(VariableType.CONNECTIVE)
+        self.preorder_tokens.append(node.type)
 
         if self.token is None or not VariableType.is_connective(self.token.kind):
             self.__raise_error()
