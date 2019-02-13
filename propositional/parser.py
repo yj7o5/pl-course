@@ -1,5 +1,6 @@
-from lexer import Location, Lexer, TokenKind, Token
+from lexer import Lexer, TokenKind, Token
 import sys
+import itertools 
 
 class VariableType:
     PROPOSITIONS = "PROPOSITIONS"
@@ -21,16 +22,15 @@ class Node(object):
 
 class Parser:
     def __init__(self):
-        self.loc = Location(0, 0)
         self.token = None
         self.preorder_tokens = []
 
     def parse(self, tokenList):
-        self.tokenList = tokenList
         
-        self.token = self.__read_token()
-    
-        self.propositions()
+        for i, tokens in itertools.groupby(tokenList, lambda x: x.loc.line):
+            self.currentLine = list(tokens)
+            self.token = self.__read_token()
+            self.propositions()
 
         return self.preorder_tokens
 
@@ -39,7 +39,7 @@ class Parser:
             self.__raise_error()
     
         self.token = self.__read_token()
-        
+         
         self.preorder_tokens.append(token_kind)
 
     def propositions(self):
@@ -109,12 +109,10 @@ class Parser:
         self.match(self.token.kind)
     
     def __raise_error(self):
-        line = self.token.loc.line
-        col = self.token.loc.col
-        raise SyntaxError("line {l} col {c}".format(l=line, c=col))
+        raise SyntaxError(self.token.loc)
 
     def __read_token(self):
-        return self.tokenList.pop(0) if len(self.tokenList) > 0 else None
+        return self.currentLine.pop(0) if len(self.currentLine) > 0 else None
 
     def __seek_next_token(self):
-        return self.tokenList[0] if len(self.tokenList) > 0 else Token(None, None) 
+        return self.currentLine[0] if len(self.currentLine) > 0 else Token(None, None) 

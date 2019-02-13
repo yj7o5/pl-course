@@ -9,25 +9,14 @@ file = open(file_name, 'r')
 
 content = file.read() 
 
-print '/**************************************************/'
-
-
 tokens = Lexer(content).tokenize()
 parser = Parser()
 
-for line, tokens_group in groupby(tokens, lambda x: x.loc.line):
-    print 'Line #{i}'.format(i=line)
-    print '----------'
-    
-    parser_output = None  
-          
-    try:
-        parser_output = parser.parse(list(tokens_group))
-    except SyntaxError as e:
-        parser_output = 'Syntax Error at {msg}'.format(msg=e.message)
+output = None
 
-    print '{p}'.format(p=parser_output)
+try:
+    output = parser.parse(tokens)
+except SyntaxError as e:
+    output = 'Syntax Error at {line}:{col}'.format(line=e.message.line, col=e.message.col)
 
-    print '\n'
-
-
+print output
