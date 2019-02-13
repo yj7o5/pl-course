@@ -30,8 +30,6 @@ class Tests(unittest.TestCase):
 
         tokens = Lexer(stream).tokenize()
 
-        # self.__print__(ast) 
-
         self.assertEqual(map(lambda x: x.kind, tokens), [TokenKind.RPAR, TokenKind.ID], stream)
 
         with self.assertRaises(SyntaxError):
