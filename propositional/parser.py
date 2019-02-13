@@ -27,11 +27,11 @@ class Parser:
 
     def parse(self, tokenList):
         self.tokenList = tokenList
-
+        
         self.token = self.__read_token()
     
-        root = self.propositions()
-        
+        self.propositions()
+
         return self.preorder_tokens
 
     def match(self, token_kind):
@@ -42,92 +42,71 @@ class Parser:
         
         self.preorder_tokens.append(token_kind)
 
-        return Node(token_kind)
-
     def propositions(self):
-        node = Node(VariableType.PROPOSITIONS)
-        self.preorder_tokens.append(node.type)
-
-        node.children.extend([self.proposition(), self.more_propositions()])
-
-        return node
+        self.preorder_tokens.append(VariableType.PROPOSITIONS)
+        
+        self.proposition()
+        self.more_propositions()
 
     def more_propositions(self):
-
-        node = Node(VariableType.MOREPROPOSITIONS)
-        self.preorder_tokens.append(node.type)
+        self.preorder_tokens.append(VariableType.MOREPROPOSITIONS)
 
         if self.token is None:
-            node.children.extend([Node(VariableType.EPSILON)])
             self.preorder_tokens.append(VariableType.EPSILON)
 
         elif self.token.is_kind(TokenKind.COMMA):
-            self.preorder_tokens.append(TokenKind.COMMA)
-            node.children.extend([self.match(TokenKind.COMMA), self.propositions()])
+            self.match(self.token.kind) 
+            self.propositions()
 
         else: 
             self.__raise_error()
-
-        return node
     
     def proposition(self):
-
-        node = Node(VariableType.PROPOSITION)
-        self.preorder_tokens.append(node.type)
+        self.preorder_tokens.append(VariableType.PROPOSITION)
 
         if self.token is None:
             self.__raise_error()
 
         elif self.token.is_kind(TokenKind.ID) and not VariableType.is_connective(self.__seek_next_token().kind):
-            node.children.extend([self.atomic()])
+            self.atomic()
         
         else: 
-            node.children.extend([self.compound()])
-
-        return node
+            self.compound()
 
     def atomic(self):
-
-        node = Node(VariableType.ATOMIC)
-
-        self.preorder_tokens.append(node.type)
-        node.children.extend([self.match(TokenKind.ID)])
-
-        return node
+        self.preorder_tokens.append(VariableType.ATOMIC)
+        self.match(TokenKind.ID)
 
     def compound(self):
-
-        node = Node(VariableType.COMPOUND)  
-        self.preorder_tokens.append(node.type)
+        self.preorder_tokens.append(VariableType.COMPOUND)
 
         if self.token is None:
             self.__raise_error()
 
         elif self.token.is_kind(TokenKind.NOT):
-            node.children.extend([self.match(TokenKind.NOT), self.proposition()])
+            self.match(TokenKind.NOT)
+            self.proposition()
 
         elif self.token.is_kind(TokenKind.LPAR):
-            node.children.extend([self.match(TokenKind.LPAR), self.proposition(), self.match(TokenKind.RPAR)])
+            self.match(TokenKind.LPAR)
+            self.proposition()
+            self.match(TokenKind.RPAR)
         
         elif self.token.is_kind(TokenKind.ID):
-            node.children.extend([self.atomic(), self.connective(), self.proposition()])
+            self.atomic()
+            self.connective()
+            self.proposition()
 
         else: 
             self.__raise_error()
-        
-        return node
-
+    
     def connective(self):
-
-        node = Node(VariableType.CONNECTIVE)
-        self.preorder_tokens.append(node.type)
+        self.preorder_tokens.append(VariableType.CONNECTIVE)
 
         if self.token is None or not VariableType.is_connective(self.token.kind):
             self.__raise_error()
 
-        node.children.extend([self.match(self.token.kind)])
-
-        return node
+        self.match(self.token.kind)
     
     def __raise_error(self):
         line = self.token.loc.line
@@ -138,11 +117,4 @@ class Parser:
         return self.tokenList.pop(0) if len(self.tokenList) > 0 else None
 
     def __seek_next_token(self):
-        if len(self.tokenList) is 0: return Token(None, None)
-        
-        return self.tokenList[0]
-    # add more methods if needed
-
-
-
-
+        return self.tokenList[0] if len(self.tokenList) > 0 else Token(None, None) 

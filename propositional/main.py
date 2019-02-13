@@ -1,100 +1,33 @@
-import unittest
-import pprint
-import copy 
+import sys
+from itertools import * 
 
 from lexer import Lexer, TokenKind
 from parser import Parser
 
-# file = open('sample.txt', 'r)
-programs = [
- '( P /\ Q )',
- '( P \/ Q ) , ( X => Y )'
-]
+file_name = sys.argv[1] if len(sys.argv) > 1 else 'sample.txt'
+file = open(file_name, 'r')
 
-def print_tokens(file, tokens, ast_tokens):
-    print 'Statement: {s}'.format(s=file)
-    print 'Tokens: {t}'.format(t=map(lambda x: x.kind, tokens))
-    print 'Result: {r}'.format(r=ast_tokens)
+content = file.read() 
 
-for p in programs:
-    tokens = Lexer(p).tokenize()
-    ast_tokens = Parser().parse(tokens[:])
-    print_tokens(p, tokens, ast_tokens)
+print '/**************************************************/'
 
-class Tests(unittest.TestCase):
-    def __print__(self, ast, i = 5):
-        pprint.pprint(ast.__dict__, indent=i, depth=1)
-        for c in ast.children: self.__print__(c, i+5)
 
-    def _test_single_token(self):
-        stream = 'Q'
+tokens = Lexer(content).tokenize()
+parser = Parser()
 
-        tokens = Lexer(stream).tokenize()
-        ast = Parser().parse(list(tokens))
-
-        self.assertEqual(map(lambda x: x.kind, tokens), [TokenKind.ID], stream)
-
-    def _test_compound_statement(self):
-        stream = '!Q'
-
-        tokens = Lexer(stream).tokenize()
-        ast = Parser().parse(list(tokens))
-
-        self.assertEqual(map(lambda x: x.kind, tokens), [TokenKind.NOT, TokenKind.ID], stream)
+for line, tokens_group in groupby(tokens, lambda x: x.loc.line):
+    print 'Line #{i}'.format(i=line)
+    print '----------'
     
-    def _test_invalid_statement(self):
-        stream = ')Q'
+    parser_output = None  
+          
+    try:
+        parser_output = parser.parse(list(tokens_group))
+    except SyntaxError as e:
+        parser_output = 'Syntax Error at {msg}'.format(msg=e.message)
 
-        tokens = Lexer(stream).tokenize()
+    print '{p}'.format(p=parser_output)
 
-        # self.__print__(ast) 
+    print '\n'
 
-        self.assertEqual(map(lambda x: x.kind, tokens), [TokenKind.RPAR, TokenKind.ID], stream)
 
-        with self.assertRaises(SyntaxError):
-            ast = Parser().parse(list(tokens))
-
-    def _test_connective_statement(self):
-        stream = 'P <=> Q'
-
-        tokens = Lexer(stream).tokenize()
-        ast = Parser().parse(tokens[:])
-        
-        self.assertEqual(map(lambda x: x.kind, tokens), [TokenKind.ID, TokenKind.IFF, TokenKind.ID], stream)
-
-    def _test_parenthesis_connective_statement(self):
-        stream = '( P /\ Q )'
-        
-        tokens = Lexer(stream).tokenize()
-        ast = Parser().parse(list(tokens))
-
-        self.assertEqual(map(lambda x: x.kind, tokens), [TokenKind.LPAR, TokenKind.ID, TokenKind.AND, TokenKind.ID, TokenKind.RPAR], stream)
-
-    def _test_conn_invalid_statement(self):
-        stream = '!Q)P!'
-
-        tokens = Lexer(stream).tokenize()
-
-        self.assertEqual(map(lambda x: x.kind, tokens), [TokenKind.NOT, TokenKind.ID, TokenKind.RPAR, TokenKind.ID, TokenKind.NOT])
-
-        with self.assertRaises(SyntaxError):
-            ast = Parser().parse(list(tokens))
-
-    def _test_multiple_statement(self):
-        stream = '( P \/ Q ) , ( X => Y )'
-        
-        tokens = Lexer(stream).tokenize()
-        ast = Parser().parse(list(tokens))
-
-        self.assertEqual(
-            map(lambda x: x.kind, tokens),
-            [
-                TokenKind.LPAR, TokenKind.ID, TokenKind.OR, TokenKind.ID, TokenKind.RPAR, 
-                TokenKind.COMMA,
-                TokenKind.LPAR, TokenKind.ID, TokenKind.IMPLIES, TokenKind.ID, TokenKind.RPAR
-            ],
-            stream
-        )
-
-if __name__ == '__main__':
-    unittest.main()

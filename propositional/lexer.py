@@ -48,7 +48,6 @@ class Lexer(object):
         self.cursor_value = self.text[self._cursor] if value < len(self.text) else None
         
     def __advance(self):
-        self.col += 1
         self.cursor += 1
 
         if self.cursor_value == '\n':
@@ -59,6 +58,7 @@ class Lexer(object):
         return self.cursor_value
 
     def __token(self, token_kind):
+        self.col += 1
         return Token(Location(self.line, self.col), token_kind)
 
     def __raise_error(self):
@@ -67,21 +67,16 @@ class Lexer(object):
     def tokenize(self):
         tokens = []
         
-        # print ">>>>>> {c} <<<<<<".format(c=self.text)
-
         while self.__advance() is not None:
-            # print "StartLoop: current_value={c} tokens={t} column={co} cursor={cur}".format(c=self.cursor_value, t=map(lambda x: x.kind, tokens), co=self.col, cur=self.cursor)
 
             # eat whitespace
             if self.cursor_value.isspace():
                 has_space = False
                 while self.cursor_value is not None and self.cursor_value.isspace():
-                    self.col += 1
                     self.cursor += 1
                     has_space = True
 
                 if has_space: 
-                    self.col -= 1
                     self.cursor -= 1
                 
                 continue
@@ -91,11 +86,9 @@ class Lexer(object):
                 has_alpha = False
                 while self.cursor_value is not None and self.cursor_value.isalpha():
                     has_alpha = True
-                    self.col += 1
                     self.cursor += 1
                 
                 if has_alpha: 
-                    self.col -= 1
                     self.cursor -= 1
 
                 tokens.append(self.__token(TokenKind.ID))
@@ -121,7 +114,7 @@ class Lexer(object):
                 if self.text[self.cursor + 1] != '\\':
                     self.__raise_error()
                 tokens.append(self.__token(TokenKind.AND))
-                self.col += 1
+                
                 self.cursor += 1
                 continue
 
@@ -131,7 +124,7 @@ class Lexer(object):
                     self.__raise_error()
                 
                 tokens.append(self.__token(TokenKind.OR))
-                self.col += 1
+                
                 self.cursor += 1
                 continue
 
@@ -141,7 +134,7 @@ class Lexer(object):
                     self.__raise_error()
                 
                 tokens.append(self.__token(TokenKind.IMPLIES))
-                self.col += 1
+                
                 self.cursor += 1
                 continue
 
@@ -152,7 +145,6 @@ class Lexer(object):
 
                 tokens.append(self.__token(TokenKind.IFF))
                 
-                self.col += 2
                 self.cursor += 2
                 continue
 
@@ -160,8 +152,6 @@ class Lexer(object):
             if self.cursor_value == ',':
                 tokens.append(self.__token(TokenKind.COMMA))
                 continue
-            
-            print "EndLoop: current_value={c} tokens={t} column={co} cursor={cur}".format(c=self.cursor_value, t=map(lambda x: x.kind, tokens), co=self.col, cur=self.cursor)
 
             raise Exception('Invalid character at Line {line}, Col {col}'.format(line=self.line, col=self.col))
 
