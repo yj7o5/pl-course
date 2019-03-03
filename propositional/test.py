@@ -77,5 +77,4 @@ class Tests(unittest.TestCase):
             stream
         )
 
-if __name__ == '__main__':
-    unittest.main()
+unittest.main()

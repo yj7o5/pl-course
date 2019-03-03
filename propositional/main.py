@@ -1,5 +1,5 @@
 import sys
-from itertools import * 
+import unittest
 
 from lexer import Lexer, TokenKind
 from parser import Parser
@@ -12,11 +12,14 @@ content = file.read()
 tokens = Lexer(content).tokenize()
 parser = Parser()
 
-output = None
+print(*tokens, sep='\n')
 
+output = None
+'''
 try:
     output = parser.parse(tokens)
 except SyntaxError as e:
     output = 'Syntax Error at {line}:{col}'.format(line=e.message.line, col=e.message.col)
 
-print output
+print(output)
+'''

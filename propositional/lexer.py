@@ -1,5 +1,7 @@
-import re
 import string
+import re
+from collections import namedtuple
+
 UPPER_CASE = set(string.ascii_uppercase)
 
 class Location:
@@ -17,142 +19,51 @@ class TokenKind:
     IMPLIES = "IMPLIES"  # =>
     IFF = "IFF"  # <=>
     COMMA = "COMMA" # ,
-    
-class Token:
-    def __init__(self, loc, kind):
-        self.loc = loc
-        self.kind = kind
+    NEWLINE = "NEWLINE" # \n
+    SPACES = "SPACES" # \t or " "
+    MISMATCH = "MISMATCH" # .
 
-    def __str__(self):
-        return str(self.kind)
-    
-    def is_kind(self, otherKind):
-        return self.kind == otherKind 
+Token = namedtuple("Tuple", ["type", "value", "line", "col"])
 
-class Lexer(object):
+token_specs = [
+    (TokenKind.ID, r"[a-zA-Z]+"),
+    (TokenKind.LPAR, r"[(]"),
+    (TokenKind.RPAR, r"[)]"),
+    (TokenKind.NOT, r"!"),
+    (TokenKind.AND, r"/\\"),
+    (TokenKind.OR, r"\\/"),
+    (TokenKind.IMPLIES, r"=>"),
+    (TokenKind.IFF, r"<=>"),
+    (TokenKind.COMMA, r","),
+    (TokenKind.NEWLINE, r"\n"),
+    (TokenKind.SPACES, r"[ \t]+"),
+    (TokenKind.MISMATCH, r".")
+]
+
+master_regex = "|".join("(?P<%s>)%s" % pair for pair in token_specs)
+
+class Lexer:
     def __init__(self, text):
         self.text = text
-        self.line = 1
-        self.col = 0
-
-        self._cursor = -1
-        self.cursor_value = None
-
-    @property
-    def cursor(self):
-        return self._cursor
-    
-    @cursor.setter
-    def cursor(self, value):
-        self._cursor = value
-        self.cursor_value = self.text[self._cursor] if value < len(self.text) else None
-        
-    def __advance(self):
-        self.cursor += 1
-
-        if self.cursor_value == '\n':
-            self.col = 0
-            self.line += 1
-            self.cursor += 1
-
-        return self.cursor_value
-
-    def __token(self, token_kind):
-        self.col += 1
-        return Token(Location(self.line, self.col), token_kind)
-
-    def __raise_error(self):
-        raise SyntaxError('Invalid character at line {line} col {col}'.format(line=self.line, col=self.col))
 
     def tokenize(self):
-        tokens = []
+        compiled_regex = re.compile(master_regex)
         
-        while self.__advance() is not None:
+        line_num = 1
+        line_start = 0
+        for mo in compiled_regex.finditer(self.text):
 
-            # eat whitespace
-            if self.cursor_value.isspace():
-                has_space = False
-                while self.cursor_value is not None and self.cursor_value.isspace():
-                    self.cursor += 1
-                    has_space = True
-
-                if has_space: 
-                    self.cursor -= 1
-                
-                continue
-
-            # Alpha [A-Z]
-            if self.cursor_value.isalpha():
-                has_alpha = False
-                while self.cursor_value is not None and self.cursor_value.isalpha():
-                    has_alpha = True
-                    self.cursor += 1
-                
-                if has_alpha: 
-                    self.cursor -= 1
-
-                tokens.append(self.__token(TokenKind.ID))
-                continue
+            kind = mo.lastgroup
+            value = mo.group()
+            column = mo.start()
             
-            # RPAR )
-            if self.cursor_value == ')':
-                tokens.append(self.__token(TokenKind.RPAR))
+            if (kind == TokenKind.NEWLINE):
+                line_num += 1
+                line_start = mo.end()
+            elif (kind == TokenKind.SPACES):
+                # ignore 
                 continue
-
-            # LPAR (
-            if self.cursor_value == '(':
-                tokens.append(self.__token(TokenKind.LPAR))
-                continue
-
-            # NOT !
-            if self.cursor_value == '!':
-                tokens.append(self.__token(TokenKind.NOT))
-                continue
-
-            # AND /\
-            if self.cursor_value == '/':
-                if self.text[self.cursor + 1] != '\\':
-                    self.__raise_error()
-                tokens.append(self.__token(TokenKind.AND))
-                
-                self.cursor += 1
-                continue
-
-            # OR \/
-            if self.cursor_value == '\\':
-                if self.text[self.cursor + 1] != '/':
-                    self.__raise_error()
-                
-                tokens.append(self.__token(TokenKind.OR))
-                
-                self.cursor += 1
-                continue
-
-            # IMPLIES =>
-            if self.cursor_value == '=':
-                if self.text[self.cursor + 1] != '>':
-                    self.__raise_error()
-                
-                tokens.append(self.__token(TokenKind.IMPLIES))
-                
-                self.cursor += 1
-                continue
-
-            # IFF <=>
-            if self.cursor_value == '<':
-                if not (self.text[self.cursor + 1] == '=' and self.text[self.cursor + 2] == '>'):
-                    self.__raise_error()
-
-                tokens.append(self.__token(TokenKind.IFF))
-                
-                self.cursor += 2
-                continue
-
-            # COMMA ,
-            if self.cursor_value == ',':
-                tokens.append(self.__token(TokenKind.COMMA))
-                continue
-
-            raise Exception('Invalid character at Line {line}, Col {col}'.format(line=self.line, col=self.col))
-
-        return tokens
+            elif (kind == TokenKind.MISMATCH):
+                raise RuntimeError(f'({line_num}:{column}) invalid token: {value}')
+            else:
+                yield Token(kind, value, line_num, column)
